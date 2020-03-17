@@ -44,11 +44,13 @@ actions['set'] = function(obj) {
 
 
 actions['call'] = function(obj) {
+	post("start a call...")
 	var path = obj[0],
 		method = obj[1];
+		callback = obj[2]
 
 	var api = getApi(path);
-	api.call(method);
+	outlet(0, '/_call_reply', callback, api.call(method));
 };
 
 
