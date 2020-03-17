@@ -35,16 +35,16 @@
       socket.bind(port);
       socket.on('message', (function(_this) {
         return function(msg, rinfo) {
-          var obj;
+          var err, obj;
           obj = _this.parse_message(msg);
-          if (obj.is_get_reply || obj.is_observer_reply) {
+          if (obj.is_get_reply || obj.is_observer_reply || obj.is_call_reply) {
             try {
               _this.emitters[obj.callback].emit('value', obj.value);
             } catch (_error) {
               err = _error;
             }
           }
-          if (obj.is_get_reply) {
+          if (obj.is_get_reply || obj.is_call_reply) {
             return delete _this.emitters[obj.callback];
           }
         };
@@ -64,6 +64,11 @@
           obj.callback = args[0];
           obj.value = args[1];
           break;
+        case '/_call_reply':
+          obj.is_call_reply = true;
+          obj.callback = args[0];
+          obj.value = args[1];
+          break;
         case '/_observer_reply':
           obj.is_observer_reply = true;
           obj.callback = args[0];
@@ -74,6 +79,7 @@
 
     Max4Node.prototype.send_message = function(address, args) {
       var buf;
+      console.log("!!!" + JSON.stringify(args))
       buf = osc.toBuffer({
         address: '/' + address,
         args: args
@@ -89,6 +95,7 @@
       emitter = new EventEmitter();
       callback = this.callbackHash();
       this.emitters[callback] = emitter;
+      console.log("observe_emitter " + JSON.stringify(msg) + " " + JSON.stringify(action))
       args = [msg.path, msg.property, callback];
       this.send_message(action, args);
       return emitter;
@@ -109,9 +116,8 @@
     };
 
     Max4Node.prototype.call = function(msg) {
-      var args;
-      args = [msg.path, msg.method];
-      return this.send_message('call', args);
+      msg.property = msg.method
+      return this.observer_emitter(msg, 'call');
     };
 
     Max4Node.prototype.observe = function(msg) {
@@ -128,7 +134,8 @@
       }
       return this.promisedFn = {
         get: promiseMessage.bind(this, 'get'),
-        count: promiseMessage.bind(this, 'count')
+        count: promiseMessage.bind(this, 'count'),
+        call: promiseMessage.bind(this, 'call')
       };
     };
 
